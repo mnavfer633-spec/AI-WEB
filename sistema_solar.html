@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORBITEX - Sistema Solar</title>
+<style>
+  :root{
+    --bg1:#02030a; --bg2:#0a0f24; --accent:#6cf; --text:#e8f0ff; --brand:#7df9ff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; font-family:'Segoe UI',system-ui,Arial,sans-serif;
+    color:var(--text);
+    background:radial-gradient(ellipse at 30% 20%, #1a2450 0%, var(--bg1) 60%), var(--bg1);
+    overflow-x:hidden;
+  }
+
+  /* Logo watermark de fondo */
+  .watermark{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22vw; font-weight:900; letter-spacing:8px;
+    color:rgba(125,249,255,.035);
+    transform:rotate(-18deg); user-select:none;
+    text-shadow:0 0 40px rgba(125,249,255,.05);
+  }
+  .watermark-ring{
+    position:fixed; top:50%; left:50%; width:70vw; height:70vw;
+    transform:translate(-50%,-50%); border-radius:50%;
+    border:2px solid rgba(125,249,255,.04);
+    box-shadow:0 0 0 40px rgba(125,249,255,.015), 0 0 0 80px rgba(125,249,255,.01);
+    pointer-events:none; z-index:0;
+  }
+
+  header{ position:relative; z-index:2; text-align:center; padding:18px 10px 8px; }
+  .brand{
+    display:inline-flex; align-items:center; gap:10px; margin-bottom:6px;
+  }
+  .brand svg{ width:34px; height:34px; }
+  .brand .name{ font-size:1.1rem; font-weight:800; letter-spacing:3px; color:var(--brand); text-shadow:0 0 12px var(--brand); }
+  header h1{ margin:0; font-size:2rem; letter-spacing:1px; text-shadow:0 0 18px #6cf; }
+  header p{ margin:6px 0 0; opacity:.75; font-size:.95rem; }
+
+  .layout{ position:relative; z-index:2; display:flex; flex-wrap:wrap; gap:24px; max-width:1200px; margin:0 auto; padding:10px 20px 30px; align-items:flex-start; justify-content:center; }
+
+  .solar-wrap{ position:relative; width:520px; height:520px; flex-shrink:0; }
+  .sun{
+    position:absolute; top:50%; left:50%; width:64px; height:64px;
+    transform:translate(-50%,-50%); border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #fff7c2, #ff9a3c 40%, #ff5e00 75%, #7a1f00);
+    box-shadow:0 0 40px 8px #ff9a3c, 0 0 80px 20px #ff5e0055;
+    z-index:2; cursor:pointer;
+  }
+  .ring{ position:absolute; inset:0; transform-origin:50% 50%; transition:transform 1.2s cubic-bezier(.4,.0,.2,1); }
+  .orbit{ position:absolute; top:50%; left:50%; border:1px solid rgba(108,204,255,.12); border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; }
+  .planet{ position:absolute; top:50%; left:50%; width:16px; height:16px; border-radius:50%; transform-origin:0 0; transition:box-shadow .3s, transform .3s; cursor:pointer; }
+  .planet .dot{ position:absolute; top:-8px; left:-8px; width:16px; height:16px; border-radius:50%; box-shadow:inset -3px -3px 6px rgba(0,0,0,.5); }
+  .planet .label{ position:absolute; top:-26px; left:50%; transform:translateX(-50%); font-size:11px; white-space:nowrap; opacity:.85; text-shadow:0 0 4px #000; }
+  .planet.active .dot{ box-shadow:0 0 14px 4px var(--accent), inset -3px -3px 6px rgba(0,0,0,.5); }
+  .planet.active .label{ color:#fff; font-weight:bold; opacity:1; }
+  .planet:hover .dot{ box-shadow:0 0 10px 3px rgba(255,255,255,.6); }
+
+  .info-panel{ flex:1; min-width:300px; max-width:520px; background:rgba(20,30,70,.55); border:1px solid rgba(108,204,255,.25); border-radius:16px; padding:20px 22px; backdrop-filter:blur(6px); box-shadow:0 8px 30px rgba(0,0,0,.4); }
+  .info-panel h2{ margin:0 0 4px; font-size:1.6rem; }
+  .info-panel .type{ opacity:.7; font-size:.9rem; margin-bottom:12px; }
+  .info-panel .facts{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-bottom:14px; }
+  .info-panel .fact{ background:rgba(255,255,255,.05); border-radius:8px; padding:8px 10px; }
+  .info-panel .fact .k{ font-size:.72rem; opacity:.6; text-transform:uppercase; letter-spacing:.5px; }
+  .info-panel .fact .v{ font-size:.95rem; margin-top:2px; }
+  .info-panel .moons h3{ margin:10px 0 6px; font-size:1rem; color:var(--accent); }
+  .info-panel .moons ul{ margin:0; padding-left:18px; }
+  .info-panel .moons li{ margin:2px 0; font-size:.9rem; cursor:pointer; }
+  .info-panel .moons li:hover{ color:var(--brand); text-decoration:underline; }
+  .info-panel .desc{ margin-top:12px; line-height:1.5; font-size:.92rem; opacity:.9; }
+  .hint{ margin-top:10px; font-size:.8rem; opacity:.6; font-style:italic; }
+
+  .progress{ margin-top:16px; height:6px; background:rgba(255,255,255,.1); border-radius:3px; overflow:hidden; }
+  .progress .bar{ height:100%; width:0%; background:linear-gradient(90deg,#6cf,#aaf); transition:width .1s linear; }
+  .counter{ text-align:right; font-size:.8rem; opacity:.6; margin-top:6px; }
+
+  /* Modal zoom */
+  .modal{ position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.85); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal.hidden{ display:none; }
+  .modal-card{
+    background:linear-gradient(160deg,#10183a,#050816); border:1px solid rgba(108,204,255,.3);
+    border-radius:20px; padding:24px; max-width:620px; width:100%; max-height:90vh; overflow:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,.6); position:relative;
+  }
+  .modal-card .close{ position:absolute; top:10px; right:14px; background:none; border:none; color:#fff; font-size:2rem; cursor:pointer; opacity:.7; }
+  .modal-card .close:hover{ opacity:1; }
+  .zoom-stage{ display:flex; justify-content:center; margin:10px 0 16px; }
+  .zoom-img{ width:260px; height:260px; border-radius:50%; object-fit:cover; box-shadow:0 0 40px rgba(108,204,255,.4), inset -12px -12px 30px rgba(0,0,0,.6); border:2px solid rgba(255,255,255,.15); }
+  .zoom-fallback{ width:260px; height:260px; border-radius:50%; box-shadow:inset -12px -12px 30px rgba(0,0,0,.6), 0 0 40px rgba(108,204,255,.3); }
+  .modal-card h2{ margin:0 0 2px; }
+  .modal-card .type{ opacity:.7; margin-bottom:12px; }
+  .modal-card .facts{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-bottom:14px; }
+  .modal-card .fact{ background:rgba(255,255,255,.05); border-radius:8px; padding:8px 10px; }
+  .modal-card .fact .k{ font-size:.72rem; opacity:.6; text-transform:uppercase; }
+  .modal-card .fact .v{ font-size:.95rem; margin-top:2px; }
+  .modal-card .moons h3{ margin:10px 0 6px; color:var(--accent); }
+  .modal-card .moons ul{ margin:0; padding-left:18px; }
+  .modal-card .moons li{ cursor:pointer; margin:2px 0; }
+  .modal-card .moons li:hover{ color:var(--brand); text-decoration:underline; }
+  .modal-card .desc{ margin-top:12px; line-height:1.5; opacity:.9; }
+
+  footer{ position:relative; z-index:2; text-align:center; padding:10px; opacity:.5; font-size:.8rem; }
+</style>
+</head>
+<body>
+<div class="watermark">ORBITEX</div>
+<div class="watermark-ring"></div>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs><radialGradient id="g" cx="50%" cy="50%"><stop offset="0%" stop-color="#7df9ff"/><stop offset="100%" stop-color="#1a2450"/></radialGradient></defs>
+      <circle cx="32" cy="32" r="10" fill="url(#g)"/>
+      <ellipse cx="32" cy="32" rx="26" ry="9" fill="none" stroke="#7df9ff" stroke-width="2" opacity=".8"/>
+      <circle cx="54" cy="32" r="3" fill="#fff"/>
+    </svg>
+    <span class="name">ORBITEX</span>
+  </div>
+  <h1>Sistema Solar</h1>
+  <p>La vista rota cada 3 segundos. Haz clic en un planeta o luna para hacer zoom y ver su aspecto real.</p>
+</header>
+
+<div class="layout">
+  <div class="solar-wrap" id="solarWrap">
+    <div class="sun" id="sunEl" title="Sol"></div>
+    <div class="ring" id="ring"></div>
+  </div>
+
+  <div class="info-panel" id="infoPanel">
+    <h2 id="pName">-</h2>
+    <div class="type" id="pType">-</div>
+    <div class="facts" id="pFacts"></div>
+    <div class="moons" id="pMoons"></div>
+    <div class="desc" id="pDesc"></div>
+    <div class="hint">Haz clic en un planeta del sistema o en una luna de la lista para hacer zoom.</div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="counter" id="counter"></div>
+  </div>
+</div>
+
+<!-- Modal zoom -->
+<div id="modal" class="modal hidden">
+  <div class="modal-card">
+    <button class="close" id="closeModal">&times;</button>
+    <div class="zoom-stage">
+      <img id="zoomImg" class="zoom-img" alt="">
+      <div id="zoomFallback" class="zoom-fallback" style="display:none"></div>
+    </div>
+    <h2 id="zMName">-</h2>
+    <div class="type" id="zMType">-</div>
+    <div class="facts" id="zMFacts"></div>
+    <div class="moons" id="zMMoons"></div>
+    <div class="desc" id="zMDesc"></div>
+  </div>
+</div>
+
+<footer>ORBITEX - Sistema Solar interactivo</footer>
+
+<script>
+const IMG = (f)=> `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(f).replace(/%20/g,'_')}?width=512`;
+
+const bodies = [
+  { name:"Sol", type:"Estrella (G2V)", color:"#ffcc33", radius:0, orbit:0, angle:0, img:"The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA's_Solar_Dynamics_Observatory_-_20100819.jpg",
+    facts:[["Diametro","1.392.700 km"],["Masa","1,989e30 kg"],["Temperatura superficie","~5.500 C"],["Edad","~4.600 millones de anos"]],
+    moons:[], desc:"Estrella central del Sistema Solar. Su gravedad mantiene a todos los planetas en orbita. Genera energia mediante fusion nuclear de hidrogeno en helio." },
+  { name:"Mercurio", type:"Planeta rocoso", color:"#b5b5b5", radius:38, orbit:90, angle:0, img:"Mercury_in_true_color.jpg",
+    facts:[["Diametro","4.879 km"],["Distancia al Sol","57,9 millones km"],["Periodo orbital","88 dias"],["Lunas","0"]],
+    moons:[], desc:"El planeta mas cercano al Sol y el mas pequeno. No tiene atmosfera significativa y sus temperaturas varian extremadamente." },
+  { name:"Venus", type:"Planeta rocoso", color:"#e8c97a", radius:38, orbit:125, angle:40, img:"Venus-real_color.jpg",
+    facts:[["Diametro","12.104 km"],["Distancia al Sol","108,2 millones km"],["Periodo orbital","225 dias"],["Lunas","0"]],
+    moons:[], desc:"El planeta mas caliente por su efecto invernadero extremo. Gira en sentido contrario a la mayoria (rotacion retrograda)." },
+  { name:"Tierra", type:"Planeta rocoso", color:"#4f8cff", radius:40, orbit:160, angle:80, img:"The_Earth_seen_from_Apollo_17.jpg",
+    facts:[["Diametro","12.742 km"],["Distancia al Sol","149,6 millones km"],["Periodo orbital","365,25 dias"],["Lunas","1"]],
+    moons:["Luna"], desc:"Unico planeta conocido con vida. Su unica luna, la Luna, estabiliza la inclinacion del eje y genera mareas." },
+  { name:"Marte", type:"Planeta rocoso", color:"#d14b2a", radius:34, orbit:195, angle:120, img:"OSIRIS_Mars_true_color.jpg",
+    facts:[["Diametro","6.779 km"],["Distancia al Sol","227,9 millones km"],["Periodo orbital","687 dias"],["Lunas","2"]],
+    moons:["Fobos","Deimos"], desc:"El 'planeta rojo', por el oxido de hierro de su superficie. Alberga el volcan mas alto del Sistema Solar, el Olympus Mons." },
+  { name:"Jupiter", type:"Gigante gaseoso", color:"#d8a07a", radius:52, orbit:235, angle:160, img:"Jupiter_and_its_shrunken_Great_Red_Spot.jpg",
+    facts:[["Diametro","139.820 km"],["Distancia al Sol","778,5 millones km"],["Periodo orbital","11,86 anos"],["Lunas","95 conocidas"]],
+    moons:["Io","Europa","Ganimedes","Calisto"], desc:"El planeta mas masivo. Su Gran Mancha Roja es una tormenta gigante. Tiene un potente campo magnetico." },
+  { name:"Saturno", type:"Gigante gaseoso", color:"#e6d29a", radius:48, orbit:275, angle:200, img:"Saturn_during_Equinox.jpg",
+    facts:[["Diametro","116.460 km"],["Distancia al Sol","1.434 millones km"],["Periodo orbital","29,46 anos"],["Lunas","146 conocidas"]],
+    moons:["Titan","Encelado","Mimas","Rea","Dione"], desc:"Famoso por sus anillos de hielo y roca. Titan es la unica luna con atmosfera densa y lagos de metano." },
+  { name:"Urano", type:"Gigante de hielo", color:"#7fd6e8", radius:42, orbit:315, angle:240, img:"Uranus2.jpg",
+    facts:[["Diametro","50.724 km"],["Distancia al Sol","2.871 millones km"],["Periodo orbital","84 anos"],["Lunas","27"]],
+    moons:["Titania","Oberon","Miranda","Ariel","Umbriel"], desc:"Rota 'acostado' (inclinacion axial ~98). De color azul verdoso por el metano en su atmosfera." },
+  { name:"Neptuno", type:"Gigante de hielo", color:"#3b6cff", radius:40, orbit:355, angle:280, img:"Neptune_-_Voyager_2_(29347980845)_flatten_crop.jpg",
+    facts:[["Diametro","49.244 km"],["Distancia al Sol","4.495 millones km"],["Periodo orbital","164,8 anos"],["Lunas","14"]],
+    moons:["Triton"], desc:"El planeta mas ventoso, con vientos de hasta 2.100 km/h. Triton es su luna mas grande y orbita en sentido contrario." },
+  { name:"Pluton", type:"Planeta enano", color:"#c9b8a3", radius:22, orbit:390, angle:320, img:"Pluto_in_True_Color_-_High-Res.jpg",
+    facts:[["Diametro","2.377 km"],["Distancia al Sol","5.906 millones km"],["Periodo orbital","248 anos"],["Lunas","5"]],
+    moons:["Caronte","Nix","Hidra","Kerberos","Estigia"], desc:"Reclasificado como planeta enano en 2006. Caronte es tan grande que forman un sistema binario." }
+];
+
+const moonData = {
+  "Luna": { color:"#cfcfcf", img:"FullMoon2010.jpg", type:"Luna de la Tierra",
+    facts:[["Diametro","3.474 km"],["Distancia a la Tierra","384.400 km"],["Periodo orbital","27,3 dias"]], desc:"Unica luna natural de la Tierra. Estabiliza el eje terrestre y genera mareas." },
+  "Fobos": { color:"#8a7a6a", img:"Phobos_color.jpg", type:"Luna de Marte",
+    facts:[["Diametro","27 km"],["Distancia a Marte","9.376 km"],["Periodo orbital","7,66 h"]], desc:"La luna mas cercana a Marte. Orbita mas rapido que la rotacion del planeta." },
+  "Deimos": { color:"#9a8a7a", img:"Deimos-viking1.jpg", type:"Luna de Marte",
+    facts:[["Diametro","15 km"],["Distancia a Marte","23.463 km"],["Periodo orbital","30,3 h"]], desc:"La mas pequena y externa de las lunas de Marte." },
+  "Io": { color:"#e8d060", img:"Io_highest_resolution_true_color.jpg", type:"Luna de Jupiter",
+    facts:[["Diametro","3.643 km"],["Distancia a Jupiter","421.700 km"]], desc:"El cuerpo mas volcanicamente activo del Sistema Solar." },
+  "Europa": { color:"#c9d6e8", img:"Europa-moon.jpg", type:"Luna de Jupiter",
+    facts:[["Diametro","3.122 km"],["Distancia a Jupiter","671.034 km"]], desc:"Oceano de agua liquida bajo su corteza de hielo. Candidata a albergar vida." },
+  "Ganimedes": { color:"#9aa0a8", img:"Ganymede_g1_true-edit1.jpg", type:"Luna de Jupiter",
+    facts:[["Diametro","5.268 km"],["Distancia a Jupiter","1.070.412 km"]], desc:"La luna mas grande del Sistema Solar, incluso mayor que Mercurio." },
+  "Calisto": { color:"#7a7a8a", img:"Callisto.jpg", type:"Luna de Jupiter",
+    facts:[["Diametro","4.821 km"],["Distancia a Jupiter","1.882.700 km"]], desc:"Superficie antigua y muy craterizada." },
+  "Titan": { color:"#d8b060", img:"Titan_in_true_color.jpg", type:"Luna de Saturno",
+    facts:[["Diametro","5.151 km"],["Distancia a Saturno","1.221.870 km"]], desc:"Unica luna con atmosfera densa y lagos de metano/etano." },
+  "Encelado": { color:"#e8e8f0", img:"Enceladus.jpg", type:"Luna de Saturno",
+    facts:[["Diametro","504 km"],["Distancia a Saturno","238.000 km"]], desc:"Geiseres de agua en su polo sur; oceano subsuperficial." },
+  "Mimas": { color:"#c8c8d0", img:"Mimas_Cassini.jpg", type:"Luna de Saturno",
+    facts:[["Diametro","396 km"],["Distancia a Saturno","185.539 km"]], desc:"Famoso crater Herschel que le da aspecto de 'Estrella de la Muerte'." },
+  "Rea": { color:"#d0d0d8", img:"Rhea_Cassini.jpg", type:"Luna de Saturno",
+    facts:[["Diametro","1.527 km"],["Distancia a Saturno","527.108 km"]], desc:"Segunda luna mas grande de Saturno." },
+  "Dione": { color:"#d8d8e0", img:"Dione_Cassini.jpg", type:"Luna de Saturno",
+    facts:[["Diametro","1.123 km"],["Distancia a Saturno","377.396 km"]], desc:"Superficie helada con acantilados brillantes." },
+  "Titania": { color:"#b8b8c8", img:"Titania_(moon).jpg", type:"Luna de Urano",
+    facts:[["Diametro","1.578 km"],["Distancia a Urano","435.910 km"]], desc:"La luna mas grande de Urano." },
+  "Oberon": { color:"#a8a8b8", img:"Oberon_moon.jpg", type:"Luna de Urano",
+    facts:[["Diametro","1.523 km"],["Distancia a Urano","583.520 km"]], desc:"Superficie oscura y craterizada." },
+  "Miranda": { color:"#c0c0d0", img:"Miranda.jpg", type:"Luna de Urano",
+    facts:[["Diametro","472 km"],["Distancia a Urano","129.390 km"]], desc:"Terreno caotico con acantilados gigantes." },
+  "Ariel": { color:"#c8c8d8", img:"Ariel_(moon).jpg", type:"Luna de Urano",
+    facts:[["Diametro","1.158 km"],["Distancia a Urano","191.020 km"]], desc:"Superficie joven con valles." },
+  "Umbriel": { color:"#888898", img:"Umbriel.jpg", type:"Luna de Urano",
+    facts:[["Diametro","1.169 km"],["Distancia a Urano","266.300 km"]], desc:"La luna mas oscura de Urano." },
+  "Triton": { color:"#c0d8e8", img:"Triton_moon.jpg", type:"Luna de Neptuno",
+    facts:[["Diametro","2.707 km"],["Distancia a Neptuno","354.759 km"]], desc:"Orbita retrógrada; geiseres de nitrogeno." },
+  "Caronte": { color:"#a89888", img:"Charon_in_True_Color_-_High-Res.jpg", type:"Luna de Pluton",
+    facts:[["Diametro","1.212 km"],["Distancia a Pluton","19.591 km"]], desc:"Tan grande que Pluton y Caronte forman un sistema binario." },
+  "Nix": { color:"#d0d0d8", img:"Nix_(moon).jpg", type:"Luna de Pluton", facts:[["Diametro","49 km"]], desc:"Luna pequeña y alargada." },
+  "Hidra": { color:"#c8c8d0", img:"Hydra_(moon).jpg", type:"Luna de Pluton", facts:[["Diametro","51 km"]], desc:"Luna externa de Pluton." },
+  "Kerberos": { color:"#b8b8c0", img:"Kerberos_(moon).jpg", type:"Luna de Pluton", facts:[["Diametro","19 km"]], desc:"Pequeña y oscura." },
+  "Estigia": { color:"#c0c0c8", img:"Styx_(moon).jpg", type:"Luna de Pluton", facts:[["Diametro","16 km"]], desc:"La luna mas pequeña y recientemente descubierta de Pluton." }
+};
+
+const ring = document.getElementById('ring');
+
+bodies.forEach((b,i)=>{
+  if(i===0) return;
+  const orb = document.createElement('div');
+  orb.className='orbit';
+  orb.style.width = (b.orbit*2)+'px';
+  orb.style.height = (b.orbit*2)+'px';
+  ring.appendChild(orb);
+
+  const pl = document.createElement('div');
+  pl.className='planet';
+  pl.dataset.idx = i;
+  pl.style.transform = `rotate(${b.angle}deg) translateX(${b.orbit}px)`;
+  pl.innerHTML = `<div class="dot" style="background:${b.color}"></div><div class="label">${b.name}</div>`;
+  pl.addEventListener('click',(e)=>{ e.stopPropagation(); openZoom(b); });
+  ring.appendChild(pl);
+});
+
+// Sol clickable
+document.getElementById('sunEl').addEventListener('click',()=> openZoom(bodies[0]));
+
+let idx = 0;
+let rotation = 0;
+const INTERVAL = 3000;
+
+function factsHTML(facts){ return facts.map(([k,v])=>`<div class="fact"><div class="k">${k}</div><div class="v">${v}</div></div>`).join(''); }
+function moonsHTML(moons, clickable=true){
+  if(!moons || !moons.length) return `<h3>Lunas</h3><p style="opacity:.6;font-size:.9rem;margin:0;">Sin lunas conocidas</p>`;
+  const items = moons.map(m=> clickable? `<li data-moon="${m}">${m}</li>` : `<li>${m}</li>`).join('');
+  return `<h3>Lunas (clic para zoom)</h3><ul>${items}</ul>`;
+}
+
+function renderInfo(i){
+  const b = bodies[i];
+  document.getElementById('pName').textContent = b.name;
+  document.getElementById('pType').textContent = b.type;
+  document.getElementById('pFacts').innerHTML = factsHTML(b.facts);
+  const moonsEl = document.getElementById('pMoons');
+  moonsEl.innerHTML = moonsHTML(b.moons, true);
+  moonsEl.querySelectorAll('li').forEach(li=>{
+    li.addEventListener('click',()=>{ const m=li.dataset.moon; if(moonData[m]) openZoomMoon(m); });
+  });
+  document.getElementById('pDesc').textContent = b.desc;
+  document.getElementById('counter').textContent = `${i+1} / ${bodies.length}`;
+  document.querySelectorAll('.planet').forEach(el=>{
+    const pi = parseInt(el.dataset.idx);
+    el.classList.toggle('active', pi===i);
+  });
+}
+
+function go(i){
+  idx = i;
+  if(i===0){ rotation = 0; } else { rotation = -bodies[i].angle; }
+  ring.style.transform = `rotate(${rotation}deg)`;
+  renderInfo(i);
+}
+
+// Modal
+const modal = document.getElementById('modal');
+function openZoom(b){
+  document.getElementById('zMName').textContent = b.name;
+  document.getElementById('zMType').textContent = b.type;
+  document.getElementById('zMFacts').innerHTML = factsHTML(b.facts);
+  const mEl = document.getElementById('zMMoons');
+  if(b.moons && b.moons.length){
+    mEl.innerHTML = `<h3>Lunas</h3><ul>${b.moons.map(m=>`<li data-moon="${m}">${m}</li>`).join('')}</ul>`;
+    mEl.querySelectorAll('li').forEach(li=>{
+      li.addEventListener('click',()=>{ const m=li.dataset.moon; if(moonData[m]) openZoomMoon(m); });
+    });
+  } else {
+    mEl.innerHTML = `<h3>Lunas</h3><p style="opacity:.6;font-size:.9rem;margin:0;">Sin lunas conocidas</p>`;
+  }
+  document.getElementById('zMDesc').textContent = b.desc;
+  const img = document.getElementById('zoomImg');
+  const fb = document.getElementById('zoomFallback');
+  img.style.display='block'; fb.style.display='none';
+  img.src = IMG(b.img);
+  img.onerror = ()=>{ img.style.display='none'; fb.style.display='block'; fb.style.background = `radial-gradient(circle at 35% 35%, ${b.color}, #000)`; };
+  modal.classList.remove('hidden');
+}
+function openZoomMoon(name){
+  const m = moonData[name];
+  if(!m) return;
+  document.getElementById('zMName').textContent = name;
+  document.getElementById('zMType').textContent = m.type;
+  document.getElementById('zMFacts').innerHTML = factsHTML(m.facts);
+  document.getElementById('zMMoons').innerHTML = '';
+  document.getElementById('zMDesc').textContent = m.desc;
+  const img = document.getElementById('zoomImg');
+  const fb = document.getElementById('zoomFallback');
+  img.style.display='block'; fb.style.display='none';
+  img.src = IMG(m.img);
+  img.onerror = ()=>{ img.style.display='none'; fb.style.display='block'; fb.style.background = `radial-gradient(circle at 35% 35%, ${m.color}, #000)`; };
+  modal.classList.remove('hidden');
+}
+document.getElementById('closeModal').addEventListener('click',()=> modal.classList.add('hidden'));
+modal.addEventListener('click',(e)=>{ if(e.target===modal) modal.classList.add('hidden'); });
+
+// Timer
+let start = Date.now();
+function resetTimer(){ start = Date.now(); }
+function tick(){
+  const elapsed = Date.now()-start;
+  const pct = Math.min(100, (elapsed/INTERVAL)*100);
+  document.getElementById('bar').style.width = pct+'%';
+  if(elapsed >= INTERVAL){ idx = (idx+1) % bodies.length; go(idx); resetTimer(); }
+  requestAnimationFrame(tick);
+}
+
+go(0);
+resetTimer();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
